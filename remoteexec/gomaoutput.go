@@ -288,11 +288,13 @@ func (g gomaOutput) toFileBlob(ctx context.Context, output *rpb.OutputFile) (*go
 	}()
 
 	blob, err := toChunkedFileBlob(ctx, rd, output.Digest.SizeBytes, g.gomaFile)
+	// prefer cas err for Unauthenticated error.
+	// http://b/181914314
+	if casErr := <-casErrCh; casErr != nil {
+		return nil, casErr
+	}
 	if err != nil {
 		return nil, status.Errorf(status.Code(err), "failed to convert output:{%v} to chunked FileBlob: %v", output, err)
-	}
-	if err = <-casErrCh; err != nil {
-		return nil, err
 	}
 	return blob, nil
 }

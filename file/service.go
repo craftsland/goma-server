@@ -9,17 +9,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"go.opencensus.io/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/hash"
 	"go.chromium.org/goma/server/log"
 
 	gomapb "go.chromium.org/goma/server/proto/api"
 	cachepb "go.chromium.org/goma/server/proto/cache"
+	filepb "go.chromium.org/goma/server/proto/file"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 
 // Service represents goma file service.
 type Service struct {
+	filepb.UnimplementedFileServiceServer
 	// Cache is a fileblob storage.
 	Cache cachepb.CacheServiceClient
 }

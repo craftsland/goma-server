@@ -170,6 +170,7 @@ const writeBackSemaphore = 8
 
 // Cache represents key-value cache.
 type Cache struct {
+	cachepb.UnimplementedCacheServiceServer
 	mem memcache
 	gcs *gcs.Cache
 

@@ -23,19 +23,19 @@ package proto
 
 //go:generate ./gen_protoc-gen-go
 //go:generate ./copy_google_protobuf.sh
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative api/goma_data.proto api/goma_log.proto
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative exec/exec_service.proto
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative file/file_service.proto
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative execlog/log_service.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative api/goma_data.proto api/goma_log.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative exec/exec_service.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative file/file_service.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative execlog/log_service.proto
 
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative cache/cache.proto cache/cache_service.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative cache/cache.proto cache/cache_service.proto
 
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative command/command.proto command/command_service.proto command/setup.proto command/package_opts.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative command/command.proto command/command_service.proto command/setup.proto command/package_opts.proto
 
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative auth/auth.proto auth/acl.proto auth/auth_service.proto auth/authdb.proto auth/authdb_service.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative auth/auth.proto auth/acl.proto auth/auth_service.proto auth/authdb.proto auth/authdb_service.proto
 
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative backend/backend.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative backend/backend.proto
 
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative settings/settings.proto settings/settings_service.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative settings/settings.proto settings/settings_service.proto
 
-//go:generate protoc -I. --go_out=plugins=grpc:. --go_opt=paths=source_relative nsjail/config.proto
+//go:generate protoc -I. --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative nsjail/config.proto

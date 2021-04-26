@@ -13,10 +13,10 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/golang/protobuf/proto"
 	"go.opencensus.io/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 // Client is httprpc client.

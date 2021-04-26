@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"go.chromium.org/goma/server/auth/enduser"
 	authpb "go.chromium.org/goma/server/proto/auth"
@@ -52,10 +52,7 @@ func TestAuthInfoExpiresAt(t *testing.T) {
 
 	t.Log("should return the same with ExpiresAt.")
 	tm := time.Now().Add(time.Hour)
-	expires, err := ptypes.TimestampProto(tm)
-	if err != nil {
-		t.Fatalf("ptypes.TimestampProto(%v) error %v; want nil", tm, err)
-	}
+	expires := timestamppb.New(tm)
 	ai = authInfo{
 		resp: &authpb.AuthResp{
 			ExpiresAt: expires,
@@ -69,15 +66,9 @@ func TestAuthInfoExpiresAt(t *testing.T) {
 
 func TestAuthInfoCheck(t *testing.T) {
 	hourAgo := time.Now().Add(-1 * time.Hour)
-	expiredHourAgo, err := ptypes.TimestampProto(hourAgo)
-	if err != nil {
-		t.Fatalf("ptypes.TimestampProto(%v) error %v; want nil", hourAgo, err)
-	}
+	expiredHourAgo := timestamppb.New(hourAgo)
 	hour := time.Now().Add(time.Hour)
-	willExpireInHour, err := ptypes.TimestampProto(hour)
-	if err != nil {
-		t.Fatalf("ptypes.TimestampProto(%v) error %v; want nil", willExpireInHour, err)
-	}
+	willExpireInHour := timestamppb.New(hour)
 
 	for _, tc := range []struct {
 		desc  string
@@ -175,10 +166,7 @@ func TestAuthExpire(t *testing.T) {
 		return now.Add(1 * time.Hour)
 	}
 	expires := expiresAt()
-	expiresProto, err := ptypes.TimestampProto(expires)
-	if err != nil {
-		t.Fatalf("expires %s: %v", expires, err)
-	}
+	expiresProto := timestamppb.New(expires)
 	var deadline time.Time
 	var callCount int
 	a := &Auth{
@@ -266,10 +254,6 @@ func TestAuthExpire(t *testing.T) {
 	if otime, ntime := expires, expires2; otime.Equal(ntime) {
 		t.Fatalf("expiresAt: %s == %s", otime, ntime)
 	}
-	expiresProto, err = ptypes.TimestampProto(expires2)
-	if err != nil {
-		t.Fatalf("timestamp %s: %v", expires2, err)
-	}
 	user, err = a.Check(ctx, req)
 	if err != nil {
 		t.Fatalf("Check failed: %v", err)
@@ -318,10 +302,7 @@ func TestAuthCheck(t *testing.T) {
 
 	t.Log("1. access succeed (using cache)")
 	hour := time.Now().Add(time.Hour)
-	willExpireInHour, err := ptypes.TimestampProto(hour)
-	if err != nil {
-		t.Fatalf("ptypes.TimestampProto(%v) error %v; want nil", willExpireInHour, err)
-	}
+	willExpireInHour := timestamppb.New(hour)
 	email := "example@google.com"
 	a1 := &Auth{
 		cache: map[string]*authInfo{
@@ -419,7 +400,7 @@ func TestAuthCheck(t *testing.T) {
 
 	t.Log("5. access fail due to expired token.")
 	hourAgo := time.Now().Add(-1 * time.Hour)
-	expiredHourAgo, err := ptypes.TimestampProto(hourAgo)
+	expiredHourAgo := timestamppb.New(hourAgo)
 	a5 := &Auth{
 		Client: dummyClient{
 			auth: func(ctx context.Context, req *authpb.AuthReq) (*authpb.AuthResp, error) {

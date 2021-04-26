@@ -26,12 +26,12 @@ import (
 
 	"cloud.google.com/go/storage"
 	rpb "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
-	"github.com/golang/protobuf/proto"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/trace"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	"go.chromium.org/goma/server/auth"
 	"go.chromium.org/goma/server/auth/account"
@@ -52,6 +52,7 @@ import (
 	cachepb "go.chromium.org/goma/server/proto/cache"
 	cmdpb "go.chromium.org/goma/server/proto/command"
 	execpb "go.chromium.org/goma/server/proto/exec"
+	execlogpb "go.chromium.org/goma/server/proto/execlog"
 	filepb "go.chromium.org/goma/server/proto/file"
 	"go.chromium.org/goma/server/remoteexec"
 	"go.chromium.org/goma/server/remoteexec/digest"
@@ -123,7 +124,9 @@ func (c fileClient) LookupFile(ctx context.Context, req *gomapb.LookupFileReq, o
 	return c.Service.LookupFile(ctx, req)
 }
 
-type execlogService struct{}
+type execlogService struct {
+	execlogpb.UnimplementedLogServiceServer
+}
 
 func (c execlogService) SaveLog(ctx context.Context, req *gomapb.SaveLogReq) (*gomapb.SaveLogResp, error) {
 	return &gomapb.SaveLogResp{}, nil
@@ -168,6 +171,7 @@ func (a defaultACL) Load(ctx context.Context) (*authpb.ACL, error) {
 }
 
 type reExecServer struct {
+	execpb.UnimplementedExecServiceServer
 	re *remoteexec.Adapter
 }
 
@@ -179,6 +183,7 @@ func (r reExecServer) Exec(ctx context.Context, req *gomapb.ExecReq) (*gomapb.Ex
 }
 
 type reFileServer struct {
+	filepb.UnimplementedFileServiceServer
 	s filepb.FileServiceServer
 }
 
@@ -243,7 +248,7 @@ func readConfigResp(fname string) (*cmdpb.ConfigResp, error) {
 		return nil, err
 	}
 	resp := &cmdpb.ConfigResp{}
-	err = proto.UnmarshalText(string(b), resp)
+	err = prototext.Unmarshal(b, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -477,8 +482,8 @@ func main() {
 	mux := http.DefaultServeMux
 	frontend.Register(mux, frontend.Frontend{
 		Backend: localBackend{
-			ExecService: reExecServer{re},
-			FileService: reFileServer{fileServiceClient.Service},
+			ExecService: reExecServer{re: re},
+			FileService: reFileServer{s: fileServiceClient.Service},
 			Auth: &auth.Auth{
 				Client: authClient{Service: authService},
 			},

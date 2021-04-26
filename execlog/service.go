@@ -14,6 +14,7 @@ import (
 
 	"go.chromium.org/goma/server/log"
 	gomapb "go.chromium.org/goma/server/proto/api"
+	execlogpb "go.chromium.org/goma/server/proto/execlog"
 )
 
 // DefaultMaxReqMsgSize is max request message size for execlog service.
@@ -200,6 +201,7 @@ var (
 
 // Service represents goma execlog service.
 type Service struct {
+	execlogpb.UnimplementedLogServiceServer
 }
 
 func osFamily(e *gomapb.ExecLog) string {

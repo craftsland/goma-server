@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"go.opencensus.io/trace"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"go.chromium.org/goma/server/log"
 	authpb "go.chromium.org/goma/server/proto/auth"
@@ -40,6 +40,7 @@ func (te *tokenCacheEntry) TokenProto() *authpb.Token {
 
 // Service implements goma auth service.
 type Service struct {
+	authpb.UnimplementedAuthServiceServer
 	// CheckToken optionally checks access token with token info.
 	// If it is not set, all access will be rejected.
 	// If it returns grpc's codes.PermissionDenied error,
@@ -157,11 +158,7 @@ func (s *Service) Auth(ctx context.Context, req *authpb.AuthReq) (*authpb.AuthRe
 		return nil, grpc.Errorf(codes.Internal, "nil TokenInfo is given for %q", te.Group)
 	}
 
-	expires, err := ptypes.TimestampProto(te.TokenInfo.ExpiresAt)
-	if err != nil {
-		return nil, grpc.Errorf(codes.OutOfRange, "bad ExpiresAt %s for %q: %v", te.TokenInfo.ExpiresAt, te.Group, err)
-	}
-
+	expires := timestamppb.New(te.TokenInfo.ExpiresAt)
 	var errorDescription string
 	var quota int32
 	if te.TokenInfo.Err == nil {

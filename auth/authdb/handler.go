@@ -17,6 +17,7 @@ type AuthDB interface {
 
 // Handler handles request to AuthDB.
 type Handler struct {
+	pb.UnimplementedAuthDBServiceServer
 	AuthDB AuthDB
 }
 

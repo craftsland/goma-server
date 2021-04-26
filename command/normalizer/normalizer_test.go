@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	cmdpb "go.chromium.org/goma/server/proto/command"
 )
@@ -430,6 +430,10 @@ func TestTarget(t *testing.T) {
 		{
 			input: "x86_64--darwin",
 			want:  "x86_64-darwin",
+		},
+		{
+			input: "le32-unknown-nacl",
+			want:  "le32-nacl",
 		},
 		{
 			input:     "x86_64-unknown-linux-gnu-should-parse-error",

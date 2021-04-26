@@ -32,11 +32,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	googleoauth2 "google.golang.org/api/oauth2/v2"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/httprpc"
 	"go.chromium.org/goma/server/log"

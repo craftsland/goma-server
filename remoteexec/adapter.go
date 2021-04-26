@@ -19,17 +19,18 @@ import (
 	rpb "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/oauth"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"go.chromium.org/goma/server/auth/enduser"
 	"go.chromium.org/goma/server/exec"
 	"go.chromium.org/goma/server/log"
 	gomapb "go.chromium.org/goma/server/proto/api"
+	execpb "go.chromium.org/goma/server/proto/exec"
 	fpb "go.chromium.org/goma/server/proto/file"
 	"go.chromium.org/goma/server/remoteexec/cas"
 	"go.chromium.org/goma/server/remoteexec/digest"
@@ -68,6 +69,7 @@ var DefaultSpanTimeout = SpanTimeout{
 
 // Adapter is an adapter from goma API to remoteexec API.
 type Adapter struct {
+	execpb.UnimplementedExecServiceServer
 	// InstancePrefix is the prefix (dirname) of the full RBE instance name.
 	// e.g. If instance name == "projects/$PROJECT/instances/default_instance",
 	// then InstancePrefix is "projects/$PROJECT/instances"
@@ -274,7 +276,7 @@ func (f *Adapter) newRequest(ctx context.Context, gomaReq *gomapb.ExecReq) *requ
 			digestCache: f.DigestCache,
 		},
 		action: &rpb.Action{
-			Timeout:    ptypes.DurationProto(timeout),
+			Timeout:    durationpb.New(timeout),
 			DoNotCache: doNotCache(gomaReq),
 		},
 	}

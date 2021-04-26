@@ -10,8 +10,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/hash"
 	"go.chromium.org/goma/server/log"

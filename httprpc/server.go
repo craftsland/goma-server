@@ -15,12 +15,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/log"
 	"go.chromium.org/goma/server/rpc"

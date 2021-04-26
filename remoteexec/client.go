@@ -184,6 +184,14 @@ func ExecuteAndWait(ctx context.Context, c Client, req *rpb.ExecuteRequest, opts
 					recordRemoteExecFinish(ctx)
 					return status.Errorf(codes.Unavailable, "operation stream lost: %v", err)
 				}
+				// record error details if any
+				// https://github.com/bazelbuild/remote-apis/blob/1aeb399731780e61dece542dc656da1775a20840/build/bazel/remote/execution/v2/remote_execution.proto#L102
+				st, ok := status.FromError(err)
+				if ok {
+					for _, dt := range st.Details() {
+						logger.Warnf("error details for %v: %v", err, dt)
+					}
+				}
 				return err
 			}
 			if opName == "" {
@@ -220,6 +228,13 @@ func ExecuteAndWait(ctx context.Context, c Client, req *rpb.ExecuteRequest, opts
 func erespErr(ctx context.Context, eresp *rpb.ExecuteResponse) error {
 	logger := log.FromContext(ctx)
 	st := eresp.GetStatus()
+	// record details if any
+	// when OK, it has empty google.devtools.remotebuildbot.ComamndStatus
+	// {code=0, message=""}.
+	if codes.Code(st.GetCode()) != codes.OK && len(st.GetDetails()) > 0 {
+		logger.Warnf("error details for %v: %v", codes.Code(st.GetCode()), st.GetDetails())
+	}
+
 	// https://github.com/bazelbuild/remote-apis/blob/e7282cf0f0e16e7ba84209be5417279e6815bee7/build/bazel/remote/execution/v2/remote_execution.proto#L83
 	// FAILED_PRECONDITION:
 	//   one or more errors occured in setting up the action

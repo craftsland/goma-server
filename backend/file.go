@@ -19,6 +19,7 @@ import (
 
 // FileServer handles /s and /l.
 type FileServer struct {
+	filepb.UnimplementedFileServiceServer
 	Client filepb.FileServiceClient
 }
 

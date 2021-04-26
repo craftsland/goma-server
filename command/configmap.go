@@ -19,13 +19,14 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/iterator"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"go.chromium.org/goma/server/log"
 	cmdpb "go.chromium.org/goma/server/proto/command"
@@ -231,7 +232,7 @@ func (c ConfigMapBucket) configMap(ctx context.Context) (*cmdpb.ConfigMap, error
 	if err != nil {
 		return nil, err
 	}
-	err = proto.UnmarshalText(string(buf), c.ConfigMap)
+	err = prototext.Unmarshal(buf, c.ConfigMap)
 	if err != nil {
 		return nil, err
 	}
@@ -740,10 +741,7 @@ func loadConfigs(ctx context.Context, client stiface.Client, uri string, rc *cmd
 			if err != nil {
 				return err
 			}
-			ts, err := ptypes.TimestampProto(attrs.Updated)
-			if err != nil {
-				return err
-			}
+			ts := timestamppb.New(attrs.Updated)
 			if err = checkSelector(rc, d.Selector); err != nil {
 				logger.Errorf("selector in %s/%s: %v", bucket, attrs.Name, err)
 				return nil

@@ -12,7 +12,7 @@ option go_package = "go.chromium.org/goma/server/proto/command";
 // path is represented as server path (posix style),
 // and converted to client path in CmdDescriptor.Setup.
 //
-// NEXT ID TO USE: 8
+// NEXT ID TO USE: 9
 message Install {
   // PrefixStyle represents a style of prefix.
   // if it is ASIS, prefix parameter is read as-is.
@@ -102,6 +102,9 @@ message Install {
   // e.g. set --target x86_64-apple-darwin-10.8.0 sent by client.
   // note: this is clang/clang++ only.
   bool clang_need_target = 6;
+
+  // windows_cross is true for windows cross compile on linux.
+  bool windows_cross = 8;
 }
 
 message Setup {

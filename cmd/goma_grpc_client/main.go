@@ -21,11 +21,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/auth/account"
 	"go.chromium.org/goma/server/auth/enduser"
@@ -204,7 +205,7 @@ func main() {
 	if err != nil {
 		fatalf("desc: %v", err)
 	}
-	err = proto.UnmarshalText(requestMsg, desc.req)
+	err = prototext.Unmarshal([]byte(requestMsg), desc.req)
 	if err != nil {
 		fatalf("request: %v", err)
 	}
@@ -221,5 +222,5 @@ func main() {
 	if err != nil {
 		fatalf("call: %v", err)
 	}
-	fmt.Println("response:\n", proto.MarshalTextString(resp))
+	fmt.Println("response:\n", prototext.Format(resp))
 }

@@ -231,6 +231,38 @@ func newFakeClang(f *fakeCmdStorage, version, target string) *fakeToolchain {
 	}
 }
 
+// newFakeClangCL creates new fake toolchain for clang-cl.
+func newFakeClangCL(f *fakeCmdStorage, version string) *fakeToolchain {
+	clangCLFile := f.newFileSpec("bin/clang-cl", true)
+	return &fakeToolchain{
+		descs: []*cpb.CmdDescriptor{
+			{
+				Selector: &cpb.Selector{
+					Name:       "clang-cl",
+					Version:    version,
+					Target:     "x86_64-windows-msvc",
+					BinaryHash: clangCLFile.Hash,
+				},
+				Setup: &cpb.CmdDescriptor_Setup{
+					CmdFile:  clangCLFile,
+					PathType: cpb.CmdDescriptor_POSIX,
+				},
+				Cross: &cpb.CmdDescriptor_Cross{
+					WindowsCross: true,
+				},
+			},
+		},
+		RemoteexecPlatform: &cpb.RemoteexecPlatform{
+			Properties: []*cpb.RemoteexecPlatform_Property{
+				{
+					Name:  "container-image",
+					Value: "docker://grpc.io/goma-dev/container-image@sha256:yyy",
+				},
+			},
+		},
+	}
+}
+
 // pushToolchains push fake toolchain in fake cluster.
 func (f *fakeCluster) pushToolchains(ctx context.Context, tc *fakeToolchain) error {
 	config := &cpb.ConfigResp{

@@ -63,6 +63,7 @@ type Config struct {
 	// compiler specific
 	// https://clang.llvm.org/docs/CrossCompilation.html#target-triple
 	ClangNeedTarget bool // true if -target is needed.
+	WindowsCross    bool
 }
 
 // Runner runs command and get combined output.
@@ -111,6 +112,16 @@ func cmdDescriptor(c Config) (*pb.CmdDescriptor, error) {
 			cd.Cross.ClangNeedTarget = true
 		default:
 			return nil, fmt.Errorf("need_target=true for non clang: %s", sel.Name)
+		}
+	}
+	if c.WindowsCross {
+		switch sel.Name {
+		case "clang-cl", "clang", "clang++":
+			// clang, clang++ for pnacl-clang
+			cd.Cross.WindowsCross = true
+		default:
+			// gcc, g++ for nacl-gcc but we disable them in client side due to ELF-32
+			return nil, fmt.Errorf("windows_cross=true is not supported for %s", sel.Name)
 		}
 	}
 

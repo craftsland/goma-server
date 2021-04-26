@@ -11,7 +11,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/hash"
 	gomapb "go.chromium.org/goma/server/proto/api"

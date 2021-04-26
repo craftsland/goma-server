@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"golang.org/x/oauth2"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	authpb "go.chromium.org/goma/server/proto/auth"
 )
@@ -62,10 +62,7 @@ func TestServiceExpire(t *testing.T) {
 		t.Fatalf("Auth failed: %v", err)
 	}
 	expires := expiresAt()
-	expiresProto, err := ptypes.TimestampProto(expires)
-	if err != nil {
-		t.Fatalf("timestamp %s: %v", expires, err)
-	}
+	expiresProto := timestamppb.New(expires)
 	want := &authpb.AuthResp{
 		Email:     "foo@example.com",
 		ExpiresAt: expiresProto,
@@ -125,11 +122,7 @@ func TestServiceExpire(t *testing.T) {
 	if otime, ntime := expires, expires2; otime.Equal(ntime) {
 		t.Fatalf("expiresAt: %s == %s", otime, ntime)
 	}
-	expiresProto, err = ptypes.TimestampProto(expires2)
-	if err != nil {
-		t.Fatalf("timestamp %s: %v", expires2, err)
-	}
-	want.ExpiresAt = expiresProto
+	want.ExpiresAt = timestamppb.New(expires2)
 	resp, err = s.Auth(ctx, &authpb.AuthReq{
 		Authorization: "Bearer token-value",
 	})
@@ -155,7 +148,7 @@ func TestAuth(t *testing.T) {
 	// 0. access succeeds by cache
 	email := "example@google.com"
 	expiresAt := time.Now().Add(10 * time.Second)
-	ptypeExpiresAt, err := ptypes.TimestampProto(expiresAt)
+	ptypeExpiresAt := timestamppb.New(expiresAt)
 	ti := &TokenInfo{
 		Email:     email,
 		Audience:  "test-audience.apps.googleusercontent.com",
@@ -176,9 +169,6 @@ func TestAuth(t *testing.T) {
 			AccessToken: "test",
 			TokenType:   "Bearer",
 		},
-	}
-	if err != nil {
-		t.Fatalf("ptypes.TimestampProto(%v) return error %v; want non error", expiresAt, err)
 	}
 	token := &oauth2.Token{
 		AccessToken: "test",

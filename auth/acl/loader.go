@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	pb "go.chromium.org/goma/server/proto/auth"
 )
@@ -40,7 +40,7 @@ func (l FileLoader) Load(ctx context.Context) (*pb.ACL, error) {
 		return nil, err
 	}
 	a := &pb.ACL{}
-	err = proto.UnmarshalText(string(b), a)
+	err = prototext.Unmarshal(b, a)
 	if err != nil {
 		return nil, fmt.Errorf("load error %s: %v", l.Filename, err)
 	}

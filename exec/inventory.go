@@ -13,15 +13,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
 	"go.opencensus.io/trace"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/auth/enduser"
 	"go.chromium.org/goma/server/command/descriptor"
+	"go.chromium.org/goma/server/command/descriptor/winpath"
 	"go.chromium.org/goma/server/command/normalizer"
 	"go.chromium.org/goma/server/log"
 	gomapb "go.chromium.org/goma/server/proto/api"
@@ -224,7 +224,7 @@ func (in *Inventory) Configure(ctx context.Context, cfgs *cmdpb.ConfigResp) erro
 			m = newConfigs[addr]
 		}
 		m[sel] = cfg
-		logger.Infof("configure %s: %s", sel, addr)
+		logger.Infof("configure %s: %s => %v", sel, addr, cfg)
 	}
 	in.mu.Lock()
 	defer in.mu.Unlock()
@@ -365,17 +365,23 @@ Loop:
 		return nil, nil, fmt.Errorf("no matching backend found for %v", cmdSel)
 	}
 
+	for _, cfg := range ccfgs {
+		err := cfg.GetBuildInfo().GetTimestamp().CheckValid()
+		if err != nil {
+			logger.Warnf("invalid timestamp in %v: %v", cfg, err)
+		}
+	}
+
 	// 3. choose the latest compiler config.
 	sort.Slice(ccfgs, func(i, j int) bool {
-		ti, err := ptypes.Timestamp(ccfgs[i].GetBuildInfo().GetTimestamp())
-		if err != nil {
-			logger.Warnf("strange timestamp: %v", err)
-			ti = time.Unix(0, 0)
+		var ti, tj time.Time
+		tsi := ccfgs[i].GetBuildInfo().GetTimestamp()
+		if tsi.IsValid() {
+			ti = tsi.AsTime()
 		}
-		tj, err := ptypes.Timestamp(ccfgs[j].GetBuildInfo().GetTimestamp())
-		if err != nil {
-			logger.Warnf("strange timestamp: %v", err)
-			tj = time.Unix(0, 0)
+		tsj := ccfgs[j].GetBuildInfo().GetTimestamp()
+		if tsj.IsValid() {
+			tj = tsj.AsTime()
 		}
 		return ti.Before(tj)
 	})
@@ -440,6 +446,9 @@ func (in *Inventory) Pick(ctx context.Context, req *gomapb.ExecReq, resp *gomapb
 	}
 	setPicked(resp.Result, cfg, path2sel)
 
+	if cfg.CmdDescriptor.GetCross().GetWindowsCross() {
+		cmdPath = winpath.ToPosix(cmdPath)
+	}
 	cmdFiles, err := descriptor.RelocateCmd(cmdPath, cfg.CmdDescriptor.Setup, subprogSetups)
 	if err != nil {
 		resp.Error = gomapb.ExecResp_BAD_REQUEST.Enum()

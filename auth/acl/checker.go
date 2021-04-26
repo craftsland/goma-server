@@ -10,11 +10,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/auth"
 	"go.chromium.org/goma/server/auth/account"
@@ -85,48 +85,58 @@ func (c *Checker) Set(ctx context.Context, config *pb.ACL) error {
 	return nil
 }
 
-// CheckToken checks token and returns group id and token used for backend API.
-func (c *Checker) CheckToken(ctx context.Context, token *oauth2.Token, tokenInfo *auth.TokenInfo) (string, *oauth2.Token, error) {
+// FindGroup finds a group for tokenInfo.
+func (c *Checker) FindGroup(ctx context.Context, tokenInfo *auth.TokenInfo) (*pb.Group, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-
-	logger := log.FromContext(ctx)
 
 	for _, g := range c.config.GetGroups() {
 		if !checkGroup(ctx, tokenInfo, g, c.AuthDB) {
 			continue
 		}
-
-		logger.Debugf("in group:%s", g.Id)
-		if g.Reject {
-			logger.Errorf("group:%s rejected", g.Id)
-			return g.Id, nil, grpc.Errorf(codes.PermissionDenied, "access rejected")
-		}
-		if g.ServiceAccount == "" {
-			logger.Debugf("group:%s use EUC", g.Id)
-			return g.Id, token, nil
-		}
-
-		sa := c.accounts[g.ServiceAccount]
-		if sa == nil {
-			logger.Errorf("group:%s service account not found: %s", g.Id, g.ServiceAccount)
-			return g.Id, nil, grpc.Errorf(codes.Internal, "service account not found: %s", g.ServiceAccount)
-		}
-		saToken, err := sa.Token(ctx)
-		if err != nil {
-			logger.Errorf("group:%s service account:%s error:%v", g.Id, g.ServiceAccount, err)
-			return g.Id, nil, grpc.Errorf(codes.Internal, "service account:%s error:%v", g.ServiceAccount, err)
-		}
-		logger.Debugf("group:%s use service account:%s", g.Id, g.ServiceAccount)
-		return g.Id, saToken, nil
+		return g, nil
 	}
-	if ctx.Err() != nil {
-		err := status.FromContextError(ctx.Err()).Err()
-		logger.Errorf("acl check context error: %v", err)
-		return "", nil, err
+	return nil, fmt.Errorf("no group for %q %q", tokenInfo.Email, tokenInfo.Audience)
+}
+
+// CheckToken checks token and returns group id and token used for backend API.
+func (c *Checker) CheckToken(ctx context.Context, token *oauth2.Token, tokenInfo *auth.TokenInfo) (string, *oauth2.Token, error) {
+
+	logger := log.FromContext(ctx)
+
+	g, err := c.FindGroup(ctx, tokenInfo)
+	if err != nil {
+		if ctx.Err() != nil {
+			err := status.FromContextError(ctx.Err()).Err()
+			logger.Errorf("acl check context error: %v", err)
+			return "", nil, err
+		}
+		logger.Errorf("no acl match: %v", err)
+		return "", nil, grpc.Errorf(codes.PermissionDenied, "access rejected")
 	}
-	logger.Errorf("no acl match")
-	return "", nil, grpc.Errorf(codes.PermissionDenied, "access rejected")
+
+	logger.Debugf("in group:%s", g.Id)
+	if g.Reject {
+		logger.Errorf("group:%s rejected", g.Id)
+		return g.Id, nil, grpc.Errorf(codes.PermissionDenied, "access rejected")
+	}
+	if g.ServiceAccount == "" {
+		logger.Debugf("group:%s use EUC", g.Id)
+		return g.Id, token, nil
+	}
+
+	sa := c.accounts[g.ServiceAccount]
+	if sa == nil {
+		logger.Errorf("group:%s service account not found: %s", g.Id, g.ServiceAccount)
+		return g.Id, nil, grpc.Errorf(codes.Internal, "service account not found: %s", g.ServiceAccount)
+	}
+	saToken, err := sa.Token(ctx)
+	if err != nil {
+		logger.Errorf("group:%s service account:%s error:%v", g.Id, g.ServiceAccount, err)
+		return g.Id, nil, grpc.Errorf(codes.Internal, "service account:%s error:%v", g.ServiceAccount, err)
+	}
+	logger.Debugf("group:%s use service account:%s", g.Id, g.ServiceAccount)
+	return g.Id, saToken, nil
 }
 
 func checkGroup(ctx context.Context, tokenInfo *auth.TokenInfo, g *pb.Group, authDB AuthDB) bool {

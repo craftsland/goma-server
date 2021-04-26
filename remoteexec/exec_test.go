@@ -16,12 +16,92 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 
+	"go.chromium.org/goma/server/command/descriptor/winpath"
 	"go.chromium.org/goma/server/hash"
 	"go.chromium.org/goma/server/log"
 	gomapb "go.chromium.org/goma/server/proto/api"
 	"go.chromium.org/goma/server/remoteexec/digest"
 	"go.chromium.org/goma/server/remoteexec/merkletree"
 )
+
+func TestDedupInputs(t *testing.T) {
+	toExecReq_Input := func(filenames []string) []*gomapb.ExecReq_Input {
+		var r []*gomapb.ExecReq_Input
+		for _, fname := range filenames {
+			r = append(r, &gomapb.ExecReq_Input{
+				Filename: proto.String(fname),
+			})
+		}
+		return r
+	}
+	fromExecReq_Input := func(inputs []*gomapb.ExecReq_Input) []string {
+		var r []string
+		for _, input := range inputs {
+			r = append(r, input.GetFilename())
+		}
+		return r
+	}
+
+	for _, tc := range []struct {
+		desc   string
+		cwd    string
+		inputs []string
+		want   []string
+	}{
+		{
+			desc: "no-dup",
+			cwd:  `c:\b\w`,
+			inputs: []string{
+				"foo",
+				"bar",
+			},
+			want: []string{
+				"foo",
+				"bar",
+			},
+		},
+		{
+			desc: "dup",
+			cwd:  `c:\b\w`,
+			inputs: []string{
+				"Foo",
+				"foo",
+			},
+			want: []string{
+				"Foo",
+			},
+		},
+		{
+			desc: "dup-pref",
+			cwd:  `c:\b\w`,
+			inputs: []string{
+				"foo",
+				"Foo",
+			},
+			want: []string{
+				"Foo",
+			},
+		},
+		{
+			desc: "short-path",
+			cwd:  `c:\b\w`,
+			inputs: []string{
+				"foo",
+				`c:\b\w\Foo`,
+			},
+			want: []string{
+				"foo",
+			},
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := dedupInputs(winpath.FilePath{}, tc.cwd, toExecReq_Input(tc.inputs))
+			if diff := cmp.Diff(tc.want, fromExecReq_Input(got)); diff != "" {
+				t.Errorf("dedupInputs: diff -want +got:\n%s", diff)
+			}
+		})
+	}
+}
 
 func TestSortMissing(t *testing.T) {
 	inputs := []*gomapb.ExecReq_Input{

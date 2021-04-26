@@ -1,4 +1,10 @@
 #!/bin/sh
 # Copyright 2018 Google Inc. All Rights Reserved.
-version="$(go list -m -f '{{.Version}}' github.com/golang/protobuf)"
-go get "github.com/golang/protobuf/protoc-gen-go@${version}"
+version="$(go list -m -f '{{.Version}}' google.golang.org/protobuf)"
+go get "google.golang.org/protobuf/cmd/protoc-gen-go@${version}"
+version="$(go list -m -f '{{.Version}}' google.golang.org/grpc/cmd/protoc-gen-go-grpc)"
+if [ -z "${version}" ]; then
+  go get "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+else
+  go get "google.golang.org/grpc/cmd/protoc-gen-go-grpc@${version}"
+fi

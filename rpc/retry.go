@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"go.opencensus.io/trace"
 	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
@@ -181,7 +180,11 @@ func retryInfo(ctx context.Context, err error) error {
 	for _, d := range st.Details() {
 		if ri, ok := d.(*epb.RetryInfo); ok {
 			dur := ri.GetRetryDelay()
-			d, err := ptypes.Duration(dur)
+			var d time.Duration
+			err := dur.CheckValid()
+			if err == nil {
+				d = dur.AsDuration()
+			}
 			return RetriableError{
 				Err:    err,
 				Max:    retryMax,

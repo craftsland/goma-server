@@ -15,10 +15,14 @@ import (
 
 // longest first
 var clangClPathFlags = []string{
+	"-fcoverage-compilation-dir=",
 	"-fcrash-diagnostics-dir=",
+	"-fdebug-compilation-dir=",
+	"-ffile-compilation-dir=",
 	"-fprofile-sample-use=",
 	"-fsanitize-blacklist=",
 	"-fprofile-instr-use=",
+	"-fprofile-list=",
 	"-resource-dir=",
 	"/vctoolsdir",
 	"/winsysroot",
@@ -122,6 +126,7 @@ func clangclRelocatableReq(filepath clientFilePath, args, envs []string) error {
 	subArgs := map[string][]string{}
 	var subCmd string
 	pathFlag := false
+	winsysrootFlag := false
 Loop:
 	for _, arg := range args {
 		if pathFlag {
@@ -130,6 +135,9 @@ Loop:
 			}
 			pathFlag = false
 			continue
+		}
+		if strings.HasPrefix(arg, "/winsysroot") || strings.HasPrefix(arg, "-imsvc") {
+			winsysrootFlag = true
 		}
 		for _, fp := range clangClPathFlags {
 			if arg != fp && strings.HasPrefix(arg, fp) {
@@ -261,12 +269,31 @@ Loop:
 		}
 	}
 
-	// Don't check environment variables.
+	// Don't check environment variables, if -imsvc or /winsysroot is set.
 	// Typically user sets `INCLUDE=C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Tools\MSVC\14.16.27023\ATLMFC\include;...`
 	// so it makes always non-relocatble.
-	// in chromium build, cang-cl uses -imsvc instead of relying on
-	// %INCLUDE%, so it would be ok to ignore environment variables.
+	// in chromium build, clang-cl uses /winsysroot (or -imsvc in past)
+	// instead of relying on %INCLUDE%, so it would be ok to ignore
+	// environment variables.
 	// http://b/173755650
+	if winsysrootFlag {
+		return nil
+	}
+	// otherwise, check environment variables.
+	for _, env := range envs {
+		e := strings.SplitN(env, "=", 2)
+		if len(e) != 2 {
+			return fmt.Errorf("bad environment variable: %s", env)
+		}
+		if e[0] == "PWD" {
+			continue
+		}
+		// TODO: need to split by list separator
+		// for %INCLUDE% or so?
+		if filepath.IsAbs(e[1]) {
+			return fmt.Errorf("abs path in env %s=%s", e[0], e[1])
+		}
+	}
 	return nil
 }
 
@@ -287,10 +314,14 @@ func clangclArgRelocatable(filepath clientFilePath, args []string) error {
 			pathFlag = true
 		case strings.HasPrefix(arg, "-debug-info-kind"):
 			continue
-		case arg == "-add-plugin", arg == "-mllvm", arg == "-plugin-arg-blink-gc-plugin":
+		case arg == "-add-plugin", arg == "-mllvm":
 			// TODO: pass llvmArgRelocatable for -mllvm?
 			skipFlag = true
 			continue
+		case strings.HasPrefix(arg, "-plugin-arg-"):
+			skipFlag = true
+			continue
+		case strings.HasPrefix(arg, "-f"): // feature
 		default:
 			return unknownFlagError{arg: fmt.Sprintf("clang-cl: %s", arg)}
 		}

@@ -7,7 +7,8 @@ package remoteexec
 import (
 	"testing"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/command/descriptor/posixpath"
 	gomapb "go.chromium.org/goma/server/proto/api"
@@ -135,7 +136,7 @@ func TestPathFromToolchainSpec(t *testing.T) {
 
 func TestNsjailHardeningConfig(t *testing.T) {
 	cfg := &nsjailpb.NsJailConfig{}
-	err := proto.UnmarshalText(nsjailHardeningConfig, cfg)
+	err := prototext.Unmarshal([]byte(nsjailHardeningConfig), cfg)
 	if err != nil {
 		t.Errorf("unmarshal\n%s\n => %v", nsjailHardeningConfig, err)
 	}

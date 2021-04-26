@@ -30,6 +30,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	"go.chromium.org/goma/server/command/descriptor"
+	"go.chromium.org/goma/server/command/descriptor/posixpath"
+	"go.chromium.org/goma/server/command/descriptor/winpath"
 	"go.chromium.org/goma/server/exec"
 	"go.chromium.org/goma/server/log"
 	gomapb "go.chromium.org/goma/server/proto/api"
@@ -68,6 +70,8 @@ type request struct {
 
 	allowChroot bool
 	needChroot  bool
+
+	crossTarget string
 
 	err error
 }
@@ -203,6 +207,12 @@ func (r *request) getInventoryData(ctx context.Context) *gomapb.ExecResp {
 		r.gomaResp.ErrorMessage = append(r.gomaResp.ErrorMessage, fmt.Sprintf("bad compiler config: %v", err))
 		return r.gomaResp
 	}
+	if cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
+		r.filepath = winpath.FilePath{}
+		// drop .bat suffix
+		// http://b/185210502#comment12
+		cmdFiles[0].Path = strings.TrimSuffix(cmdFiles[0].Path, ".bat")
+	}
 
 	r.cmdConfig = cmdConfig
 	r.cmdFiles = cmdFiles
@@ -227,7 +237,7 @@ func (r *request) getInventoryData(ctx context.Context) *gomapb.ExecResp {
 		}
 	}
 	r.allowChroot = cmdConfig.GetRemoteexecPlatform().GetHasNsjail()
-	logger.Infof("platform: %s, allowChroot=%t", r.platform, r.allowChroot)
+	logger.Infof("platform: %s, allowChroot=%t path_tpye=%s windows_cross=%t", r.platform, r.allowChroot, cmdConfig.GetCmdDescriptor().GetSetup().GetPathType(), cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross())
 	return nil
 }
 
@@ -376,6 +386,35 @@ func uploadInputFiles(ctx context.Context, inputs []*gomapb.ExecReq_Input, gi go
 	return eg.Wait()
 }
 
+func dedupInputs(filepath clientFilePath, cwd string, inputs []*gomapb.ExecReq_Input) []*gomapb.ExecReq_Input {
+	var deduped []*gomapb.ExecReq_Input
+	m := make(map[string]int) // key name -> index in deduped
+
+	for _, input := range inputs {
+		fname := input.GetFilename()
+		if !filepath.IsAbs(fname) {
+			fname = filepath.Join(cwd, fname)
+		}
+		k := strings.ToLower(fname)
+		i, found := m[k]
+		if !found {
+			m[k] = len(deduped)
+			deduped = append(deduped, input)
+			continue
+		}
+		// If there is already registered filename, compare and take shorter one.
+		if len(input.GetFilename()) < len(deduped[i].GetFilename()) {
+			deduped[i] = input
+			continue
+		}
+		// If length is same, take lexicographically smaller one.
+		if len(input.GetFilename()) == len(deduped[i].GetFilename()) && input.GetFilename() < deduped[i].GetFilename() {
+			deduped[i] = input
+		}
+	}
+	return deduped
+}
+
 type inputFileResult struct {
 	missingInput  string
 	missingReason string
@@ -462,7 +501,7 @@ func (r *request) newInputTree(ctx context.Context) *gomapb.ExecResp {
 	r.tree = merkletree.New(r.filepath, rootDir, r.digestStore)
 	r.needChroot = needChroot
 
-	logger.Infof("new input tree cwd:%s root:%s execRoot:%s %s", r.gomaReq.GetCwd(), r.tree.RootDir(), execRootDir, r.cmdConfig.GetCmdDescriptor().GetSetup().GetPathType())
+	logger.Infof("new input tree cwd:%s root:%s execRoot:%s %s", r.gomaReq.GetCwd(), r.tree.RootDir(), execRootDir, r.filepath)
 	// If toolchain_included is true, r.gomaReq.Input and cmdFiles will contain the same files.
 	// To avoid dup, if it's added in r.gomaReq.Input, we don't add it as cmdFiles.
 	// While processing r.gomaReq.Input, we handle missing input, so the main routine is in
@@ -492,11 +531,20 @@ func (r *request) newInputTree(ctx context.Context) *gomapb.ExecResp {
 	cleanRootDir := r.filepath.Clean(r.tree.RootDir())
 
 	start := time.Now()
-	results := inputFiles(ctx, r.gomaReq.Input, r.input, func(filename string) (string, error) {
+	reqInputs := r.gomaReq.Input
+	if _, ok := r.filepath.(winpath.FilePath); ok && !r.cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
+		// need to dedup filename for windows,
+		// except windows cross case.
+		reqInputs = dedupInputs(r.filepath, cleanCWD, r.gomaReq.Input)
+		if len(reqInputs) != len(r.gomaReq.Input) {
+			logger.Infof("input dedup %d -> %d", len(r.gomaReq.Input), len(reqInputs))
+		}
+	}
+	results := inputFiles(ctx, reqInputs, r.input, func(filename string) (string, error) {
 		return rootRel(r.filepath, filename, cleanCWD, cleanRootDir)
 	}, executableInputs)
-	uploads := make([]*gomapb.ExecReq_Input, 0, len(r.gomaReq.Input))
-	for i, input := range r.gomaReq.Input {
+	uploads := make([]*gomapb.ExecReq_Input, 0, len(reqInputs))
+	for i, input := range reqInputs {
 		result := &results[i]
 		if r.err == nil && result.err != nil {
 			r.err = result.err
@@ -506,10 +554,10 @@ func (r *request) newInputTree(ctx context.Context) *gomapb.ExecResp {
 		}
 	}
 	if r.err != nil {
-		logger.Warnf("inputFiles=%d uploads=%d in %s err:%v", len(r.gomaReq.Input), len(uploads), time.Since(start), r.err)
+		logger.Warnf("inputFiles=%d uploads=%d in %s err:%v", len(reqInputs), len(uploads), time.Since(start), r.err)
 		return nil
 	}
-	logger.Infof("inputFiles=%d uploads=%d in %s", len(r.gomaReq.Input), len(uploads), time.Since(start))
+	logger.Infof("inputFiles=%d uploads=%d in %s", len(reqInputs), len(uploads), time.Since(start))
 
 	var files []merkletree.Entry
 	var missingInputs []string
@@ -527,7 +575,7 @@ func (r *request) newInputTree(ctx context.Context) *gomapb.ExecResp {
 		files = append(files, in.file)
 	}
 	if len(missingInputs) > 0 {
-		logger.Infof("missing %d inputs out of %d. need to uploads=%d", len(missingInputs), len(r.gomaReq.Input), len(uploads))
+		logger.Infof("missing %d inputs out of %d. need to uploads=%d", len(missingInputs), len(reqInputs), len(uploads))
 
 		r.gomaResp.MissingInput = missingInputs
 		r.gomaResp.MissingReason = missingReason
@@ -575,6 +623,7 @@ func (r *request) newInputTree(ctx context.Context) *gomapb.ExecResp {
 		fname, err := rootRel(r.filepath, e.Name, cleanCWD, cleanRootDir)
 		if err != nil {
 			if err == errOutOfRoot {
+				logger.Warnf("cmd files: out of root: %s", e.Name)
 				continue
 			}
 			r.err = fmt.Errorf("command file: %v", err)
@@ -713,6 +762,9 @@ func (r *request) newWrapperScript(ctx context.Context, cmdConfig *cmdpb.Config,
 	if wd == "" {
 		wd = "."
 	}
+	if cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
+		wd = winpath.ToPosix(wd)
+	}
 	envs := []string{fmt.Sprintf("WORK_DIR=%s", wd)}
 
 	// The developer of this program can make multiple wrapper scripts
@@ -724,12 +776,12 @@ func (r *request) newWrapperScript(ctx context.Context, cmdConfig *cmdpb.Config,
 
 	args := buildArgs(ctx, cmdConfig, argv0, r.gomaReq)
 	// TODO: only allow specific envs.
+	r.crossTarget = targetFromArgs(args)
 
 	var relocatableErr error
 	wt := wrapperRelocatable
-	pathType := cmdConfig.GetCmdDescriptor().GetSetup().GetPathType()
-	switch pathType {
-	case cmdpb.CmdDescriptor_POSIX:
+	switch r.filepath.(type) {
+	case posixpath.FilePath:
 		if r.needChroot {
 			wt = wrapperNsjailChroot
 		} else {
@@ -739,7 +791,7 @@ func (r *request) newWrapperScript(ctx context.Context, cmdConfig *cmdpb.Config,
 				logger.Infof("non relocatable: %v", relocatableErr)
 			}
 		}
-	case cmdpb.CmdDescriptor_WINDOWS:
+	case winpath.FilePath:
 		relocatableErr = relocatableReq(ctx, cmdConfig, r.filepath, r.gomaReq.Arg, r.gomaReq.Env)
 		if relocatableErr != nil {
 			wt = wrapperWinInputRootAbsolutePath
@@ -747,9 +799,22 @@ func (r *request) newWrapperScript(ctx context.Context, cmdConfig *cmdpb.Config,
 		} else {
 			wt = wrapperWin
 		}
+		if cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
+			switch wt {
+			case wrapperWinInputRootAbsolutePath:
+				// we expect most case is relocatable
+				// with -fdebug-compilation-dir=.
+				// but it would break if user uses unknown
+				// flags, which makes request unrelocatable.
+				// See rootDir fix in wrapperInputRootAbsolutePath below.
+				wt = wrapperInputRootAbsolutePath
+			case wrapperWin:
+				wt = wrapperRelocatable
+			}
+		}
 	default:
 		// internal error? maybe toolchain config is broken.
-		return fmt.Errorf("bad path type: %v", pathType)
+		return fmt.Errorf("bad path type: %T", r.filepath)
 	}
 
 	const posixWrapperName = "run.sh"
@@ -776,7 +841,17 @@ func (r *request) newWrapperScript(ctx context.Context, cmdConfig *cmdpb.Config,
 		wrapperData := digest.Bytes("wrapper-script", []byte(wrapperScript))
 		files, wrapperData = r.maybeApplyHardening(ctx, "InputRootAbsolutePath", files, wrapperData)
 		// https://cloud.google.com/remote-build-execution/docs/remote-execution-properties#container_properties
-		r.addPlatformProperty(ctx, "InputRootAbsolutePath", r.tree.RootDir())
+		rootDir := r.tree.RootDir()
+		if cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
+			// we can't use windows path as absolute path.
+			// drop first two letters (i.e. `C:`), and
+			// convert \ to /.
+			// instead of making relocatable check loose,
+			// better to omit drive letter and make the
+			// effective for the same drive letter.
+			rootDir = winpath.ToPosix(rootDir)
+		}
+		r.addPlatformProperty(ctx, "InputRootAbsolutePath", rootDir)
 		for _, e := range r.gomaReq.Env {
 			envs = append(envs, e)
 		}
@@ -882,6 +957,9 @@ func (r *request) newWrapperScript(ctx context.Context, cmdConfig *cmdpb.Config,
 	if wrapperPath == posixWrapperName {
 		wrapperPath = "./" + posixWrapperName
 	}
+	if cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
+		wrapperPath = winpath.ToPosix(wrapperPath)
+	}
 	r.args = append([]string{wrapperPath}, args...)
 
 	err = stats.RecordWithTags(ctx, []tag.Mutator{tag.Upsert(wrapperTypeKey, wt.String())}, wrapperCount.M(1))
@@ -938,6 +1016,19 @@ func disableHardening(hashes []string, cmdFiles []*cmdpb.FileSpec) (*cmdpb.FileS
 func buildArgs(ctx context.Context, cmdConfig *cmdpb.Config, arg0 string, req *gomapb.ExecReq) []string {
 	// TODO: need compiler specific handling?
 	args := append([]string{arg0}, req.Arg[1:]...)
+	if cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
+		args[0] = winpath.ToPosix(args[0])
+	argLoop:
+		for i := 1; i < len(args); i++ {
+			for _, f := range []string{"/winsysroot", "-resource-dir=", "-imsvc"} {
+				if strings.HasPrefix(args[i], f) {
+					args[i] = f + winpath.ToPosix(strings.TrimPrefix(args[i], f))
+					continue argLoop
+				}
+			}
+			// TODO: need to handle other args?
+		}
+	}
 	if cmdConfig.GetCmdDescriptor().GetCross().GetClangNeedTarget() {
 		args = addTargetIfNotExist(args, req.GetCommandSpec().GetTarget())
 	}
@@ -956,6 +1047,21 @@ func addTargetIfNotExist(args []string, target string) []string {
 	// `-target <triple>`, but clang --help shows
 	//  --target=<value>        Generate code for the given target
 	return append(args, fmt.Sprintf("--target=%s", target))
+}
+
+func targetFromArgs(args []string) string {
+	for i, arg := range args {
+		if arg == "-target" {
+			if i < len(args)-1 {
+				return args[i+1]
+			}
+			return ""
+		}
+		if strings.HasPrefix(arg, "--target=") {
+			return strings.TrimPrefix(arg, "--target=")
+		}
+	}
+	return ""
 }
 
 type unknownFlagError struct {
@@ -1091,6 +1197,9 @@ func (r *request) newCommand(ctx context.Context) (*rpb.Command, error) {
 		if err != nil {
 			return nil, fmt.Errorf("output %s: %v", output, err)
 		}
+		if r.cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
+			rel = winpath.ToPosix(rel)
+		}
 		command.OutputFiles = append(command.OutputFiles, rel)
 	}
 	sort.Strings(command.OutputFiles)
@@ -1101,6 +1210,9 @@ func (r *request) newCommand(ctx context.Context) (*rpb.Command, error) {
 		rel, err := rootRel(r.filepath, output, cleanCWD, cleanRootDir)
 		if err != nil {
 			return nil, fmt.Errorf("output dir %s: %v", output, err)
+		}
+		if r.cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
+			rel = winpath.ToPosix(rel)
 		}
 		command.OutputDirectories = append(command.OutputDirectories, rel)
 	}
@@ -1341,12 +1453,15 @@ func (r *request) newResp(ctx context.Context, eresp *rpb.ExecuteResponse, cache
 	outputTime := timestampSub(ctx, md.GetOutputUploadCompletedTimestamp(), md.GetOutputUploadStartTimestamp())
 	osFamily := platformOSFamily(r.platform)
 	dockerRuntime := platformDockerRuntime(r.platform)
-	logger.Infof("exit=%d cache=%s : exec on %q[%s, %s] queue=%s worker=%s input=%s exec=%s output=%s",
+	crossCompileType := crossCompileType(r.cmdConfig.GetCmdDescriptor().GetCross())
+	logger.Infof("exit=%d cache=%s : exec on %q[%s, %s, cross:%s, target=%s] queue=%s worker=%s input=%s exec=%s output=%s",
 		eresp.Result.GetExitCode(),
 		r.gomaResp.GetCacheHit(),
 		md.GetWorker(),
 		osFamily,
 		dockerRuntime,
+		crossCompileType,
+		r.crossTarget,
 		queueTime,
 		workerTime,
 		inputTime,
@@ -1358,6 +1473,7 @@ func (r *request) newResp(ctx context.Context, eresp *rpb.ExecuteResponse, cache
 		tag.Upsert(rbeCacheKey, r.gomaResp.GetCacheHit().String()),
 		tag.Upsert(rbePlatformOSFamilyKey, osFamily),
 		tag.Upsert(rbePlatformDockerRuntimeKey, dockerRuntime),
+		tag.Upsert(rbeCrossKey, crossCompileType),
 	}
 	stats.RecordWithTags(ctx, tags, rbeQueueTime.M(float64(queueTime.Nanoseconds())/1e6))
 	stats.RecordWithTags(ctx, tags, rbeWorkerTime.M(float64(workerTime.Nanoseconds())/1e6))
@@ -1494,6 +1610,16 @@ func platformDockerRuntime(p *rpb.Platform) string {
 		return "nsjail"
 	}
 	return "default"
+}
+
+func crossCompileType(cross *cmdpb.CmdDescriptor_Cross) string {
+	switch {
+	case cross.GetWindowsCross():
+		return "win"
+	case cross.GetClangNeedTarget():
+		return "need-target"
+	}
+	return "no"
 }
 
 func shortLogMsg(msg []byte) string {
