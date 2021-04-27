@@ -78,7 +78,10 @@ luci.list_view(
 # The CQ group with all pre-submit builders, referenced below.
 luci.cq_group(
     name = "Main CQ",
-    watch = cq.refset("https://chromium-review.googlesource.com/infra/goma/server"),
+    watch = cq.refset(
+      repo = "https://chromium-review.googlesource.com/infra/goma/server",
+      refs = ["refs/heads/.+"],
+    )
 )
 luci.builder(
     name = "linux_rel",
