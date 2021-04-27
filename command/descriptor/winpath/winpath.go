@@ -21,6 +21,8 @@ var (
 // FilePath provides win filepath.
 type FilePath struct{}
 
+func (FilePath) String() string { return "win.filepath" }
+
 func (FilePath) IsAbs(path string) bool     { return IsAbs(path) }
 func (FilePath) Base(path string) string    { return Base(path) }
 func (FilePath) Dir(path string) string     { return Dir(path) }
@@ -134,6 +136,13 @@ func SplitElem(fname string) []string {
 		elems = append([]string{drive}, elems...)
 	}
 	return elems
+}
+
+// ToPosix converts fname into posix filepath.
+// It drops drive letters.
+func ToPosix(fname string) string {
+	_, path := splitDrive(fname)
+	return strings.ReplaceAll(path, "\\", "/")
 }
 
 func fixPathSep(path string, oldSep, newSep byte) string {

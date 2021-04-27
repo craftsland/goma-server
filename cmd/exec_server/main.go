@@ -25,7 +25,6 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
-	"github.com/golang/protobuf/proto"
 	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/stats"
@@ -37,6 +36,7 @@ import (
 	bspb "google.golang.org/genproto/googleapis/bytestream"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	"go.chromium.org/goma/server/cache/redis"
 	"go.chromium.org/goma/server/command"
@@ -472,7 +472,7 @@ func main() {
 	case *configMap != "":
 		go func() {
 			cm := &cmdpb.ConfigMap{}
-			err := proto.UnmarshalText(*configMap, cm)
+			err := prototext.Unmarshal([]byte(*configMap), cm)
 			if err != nil {
 				ready <- fmt.Errorf("parse configmap %q: %v", *configMap, err)
 				return
@@ -491,7 +491,7 @@ func main() {
 	case *toolchainConfigBucket != "":
 		cm := &cmdpb.ConfigMap{}
 		if *configMap != "" {
-			err := proto.UnmarshalText(*configMap, cm)
+			err := prototext.Unmarshal([]byte(*configMap), cm)
 			if err != nil {
 				ready <- fmt.Errorf("parse configmap %q: %v", *configMap, err)
 				return

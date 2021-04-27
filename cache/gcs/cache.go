@@ -36,6 +36,8 @@ func (nullAdmissionController) AdmitPut(context.Context, *pb.PutReq) error { ret
 
 // Cache represents key-value cache using google cloud storage.
 type Cache struct {
+	pb.UnimplementedCacheServiceServer
+
 	bkt                 *storage.BucketHandle
 	AdmissionController AdmissionController
 	// should be accessed via stomic pkg.

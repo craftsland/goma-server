@@ -40,23 +40,14 @@ $ remoteexec_proxy --port $PORT \
    --remote-instance-name $REMOTE_INSTANCE_NAME
 ```
 
-for chromium, platform container image should be created with
-[install-build-dep.sh](https://chromium.googlesource.com/chromium/src/+/master/build/install-build-deps.sh).
-
-Example Dockerfile
+for chromium, platform container image would be something like
 ```
-FROM ubuntu:16.04
+FROM marketing.gcr.io/google/ubuntu1804:latest
 ENV DEBIAN_FRONTEND noninteractive
 
-ADD https://chromium.googlesource.com/chromium/src/+/master/build/install-build-deps.sh?format=TEXT /tmp/install-build-deps.sh.base64
-RUN base64 -d /tmp/install-build-deps.sh.base64 > /tmp/install-build-deps.sh \
+RUN apt-get -y update \
   && \
-  apt-get -y update \
-  && \
-  apt-get install -f -y build-essential gcc-4.8 g++-4.8 docker.io \
-  && \
-  bash /tmp/install-build-deps.sh --lib32 --no-prompt \
-     --no-chromeos-fonts \
+  apt-get install -f -y build-essential lsb-release python \
   && \
   rm -rf /var/lib/apt/lists/*
 

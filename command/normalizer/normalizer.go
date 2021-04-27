@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	cmdpb "go.chromium.org/goma/server/proto/command"
+	"google.golang.org/protobuf/proto"
 
-	"github.com/golang/protobuf/proto"
+	cmdpb "go.chromium.org/goma/server/proto/command"
 )
 
 type target struct {

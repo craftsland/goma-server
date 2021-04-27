@@ -19,6 +19,7 @@ import (
 
 // ExecServer handles /e.
 type ExecServer struct {
+	execpb.UnimplementedExecServiceServer
 	Client execpb.ExecServiceClient
 }
 

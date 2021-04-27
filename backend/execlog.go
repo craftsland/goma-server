@@ -17,6 +17,7 @@ import (
 
 // ExeclogServer handles /sl.
 type ExeclogServer struct {
+	execlogpb.UnimplementedLogServiceServer
 	Client execlogpb.LogServiceClient
 }
 

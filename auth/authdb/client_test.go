@@ -10,9 +10,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/httprpc"
 	authdbrpc "go.chromium.org/goma/server/httprpc/authdb"
@@ -20,6 +20,7 @@ import (
 )
 
 type fakeAuthDBServer struct {
+	pb.UnimplementedAuthDBServiceServer
 	t        *testing.T
 	want     *pb.CheckMembershipReq
 	resp     *pb.CheckMembershipResp

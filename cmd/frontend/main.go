@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/golang/protobuf/proto"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 	"go.opencensus.io/zpages"
@@ -25,6 +24,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/prototext"
 
 	"go.chromium.org/goma/server/auth"
 	"go.chromium.org/goma/server/backend"
@@ -149,7 +149,7 @@ func main() {
 	defer authConn.Close()
 
 	beCfg := &bepb.BackendConfig{}
-	err = proto.UnmarshalText(*backendConfig, beCfg)
+	err = prototext.Unmarshal([]byte(*backendConfig), beCfg)
 	if err != nil {
 		logger.Fatal(err)
 	}

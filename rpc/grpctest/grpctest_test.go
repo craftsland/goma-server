@@ -18,6 +18,7 @@ import (
 
 // MyServer is fake execlog server.
 type MyServer struct {
+	pb.UnimplementedLogServiceServer
 	Req  *gomapb.SaveLogReq
 	Resp *gomapb.SaveLogResp
 	Err  error

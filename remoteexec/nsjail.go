@@ -8,7 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 
 	gomapb "go.chromium.org/goma/server/proto/api"
 	nsjailpb "go.chromium.org/goma/server/proto/nsjail"
@@ -253,5 +254,5 @@ func nsjailChrootConfig(cwd string, cfp clientFilePath, ts []*gomapb.ToolchainSp
 		// Default size might be too strict, and not suitable for
 		// compiling.
 	}
-	return []byte(proto.MarshalTextString(cfg))
+	return []byte(prototext.Format(cfg))
 }

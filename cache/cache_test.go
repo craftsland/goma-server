@@ -8,9 +8,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	pb "go.chromium.org/goma/server/proto/cache"
 )

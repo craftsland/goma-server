@@ -9,10 +9,12 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
+	"reflect"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // SHA256HMAC returns a hexdecimal representation of the SHA256 hmac of the given two content.
@@ -30,6 +32,12 @@ func SHA256Content(b []byte) string {
 
 // SHA256Proto returns a hexdecimal representation of the SHA256 hash of the given protocol buffer.
 func SHA256Proto(m proto.Message) (string, error) {
+	// github.com/golang/protobuf/proto's Marshal returned error for nil
+	// message, but google.golang.org/protobuf/proto returns nil err.
+	// To preserve behavior of SHA256Proto, check m is nil-pointer or not.
+	if !reflect.ValueOf(m).IsValid() {
+		return "", fmt.Errorf("nil %T", m)
+	}
 	b, err := proto.Marshal(m)
 	if err != nil {
 		return "", err

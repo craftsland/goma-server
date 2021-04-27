@@ -13,6 +13,8 @@ import (
 // FilePath provides posix filepath.
 type FilePath struct{}
 
+func (FilePath) String() string { return "posix.filepath" }
+
 func (FilePath) IsAbs(path string) bool     { return IsAbs(path) }
 func (FilePath) Base(path string) string    { return Base(path) }
 func (FilePath) Dir(path string) string     { return Dir(path) }

@@ -129,6 +129,10 @@ message CmdDescriptor {
     // note: it is clang/clang++ specific.
     bool clang_need_target = 1;
 
+    // If windows_cross is true, it accepts compile request from windows,
+    // but run it on linux workers.
+    bool windows_cross = 2;
+
     // TODO: implement followings.
     // - needs path conversion
     //   - nacl/win->linux

@@ -12,10 +12,14 @@ import (
 
 // longest first
 var pathFlags = []string{
+	"-fcoverage-compilation-dir=",
 	"-fcrash-diagnostics-dir=",
+	"-fdebug-compilation-dir=",
+	"-ffile-compilation-dir=",
 	"-fprofile-sample-use=",
 	"-fsanitize-blacklist=",
 	"-fprofile-instr-use=",
+	"-fprofile-list=",
 	"-resource-dir=",
 	"--include=",
 	"--sysroot=",
@@ -88,9 +92,19 @@ Loop:
 		}
 		for _, fp := range pathFlags {
 			if arg != fp && strings.HasPrefix(arg, fp) {
-
 				if filepath.IsAbs(arg[len(fp):]) {
 					return fmt.Errorf("abs path: %s", arg)
+				}
+				if fp == "-fdebug-compilation-dir=" || fp == "-ffile-compilation-dir=" {
+					switch subCmd {
+					case "clang":
+						subArgs[subCmd] = append(subArgs[subCmd], arg)
+						fallthrough
+					case "":
+						debugCompilationDir = true
+						continue Loop
+					}
+					return errors.New("-fdebug-compilation-dir= and -ffile-compilation-dir= not supported for " + subCmd)
 				}
 				continue Loop
 			}
@@ -171,6 +185,7 @@ Loop:
 		case arg == "-MMD" || arg == "-MD" || arg == "-M":
 		case arg == "-Qunused-arguments":
 		case arg == "-static-libgcc":
+		case strings.HasPrefix(arg, "--rtlib="):
 			continue
 
 		case arg == "-o":
@@ -251,13 +266,14 @@ func clangArgRelocatable(filepath clientFilePath, args []string) error {
 		case skipFlag:
 			skipFlag = false
 
-		case arg == "-mllvm", arg == "-add-plugin", arg == "-fdebug-compilation-dir":
+		case arg == "-mllvm", arg == "-add-plugin", arg == "-fdebug-compilation-dir", arg == "-target-feature":
 			// TODO: pass llvmArgRelocatable for -mllvm?
 			skipFlag = true
 		case strings.HasPrefix(arg, "-plugin-arg-"):
 			skipFlag = true
 		case arg == "-load":
 			pathFlag = true
+		case strings.HasPrefix(arg, "-f"): // feature
 		case strings.HasPrefix(arg, "-debug-info-kind="):
 		default:
 			return unknownFlagError{arg: fmt.Sprintf("clang: %s", arg)}

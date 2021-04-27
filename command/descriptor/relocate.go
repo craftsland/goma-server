@@ -7,7 +7,7 @@ package descriptor
 import (
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/command/descriptor/posixpath"
 	"go.chromium.org/goma/server/command/descriptor/winpath"

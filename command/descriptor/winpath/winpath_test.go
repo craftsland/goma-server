@@ -364,6 +364,28 @@ func TestSplitElem(t *testing.T) {
 
 }
 
+func TestToPosix(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		want string
+	}{
+		{"a", "a"},
+		{`a\b`, "a/b"},
+		{"a/b", "a/b"},
+		{`a\b\c`, "a/b/c"},
+		{`a/b\c`, "a/b/c"},
+		{`\a\b\c`, "/a/b/c"},
+		{`c:\a`, "/a"},
+		{`c:\a\b\c`, "/a/b/c"},
+		{`c:a\b\c`, "a/b/c"},
+	} {
+		got := ToPosix(tc.path)
+		if got != tc.want {
+			t.Errorf("ToPosix(%q)=%q; want=%q", tc.path, got, tc.want)
+		}
+	}
+}
+
 func BenchmarkCleanAlreadyClean(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Clean("../abc/def/ghi")
