@@ -1,9 +1,12 @@
 #!/usr/bin/env lucicfg
 
-lucicfg.check_version("1.18.4", "Please update depot_tools")
+lucicfg.check_version("1.23.0", "Please update depot_tools")
 
 # Enable LUCI Realms support.
 lucicfg.enable_experiment("crbug.com/1085650")
+
+# Launch 100% of Swarming tasks for builds in "realms-aware mode"
+luci.builder.defaults.experiments.set({"luci.use_realms": 100})
 
 luci.project(
     name = "goma-server",
