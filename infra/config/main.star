@@ -10,12 +10,10 @@ luci.builder.defaults.experiments.set({"luci.use_realms": 100})
 
 luci.project(
     name = "goma-server",
-
     buildbucket = "cr-buildbucket.appspot.com",
     logdog = "luci-logdog.appspot.com",
     milo = "luci-milo.appspot.com",
     swarming = "chromium-swarm.appspot.com",
-
     acls = [
         # This project is publicly readable.
         acl.entry(
@@ -33,17 +31,16 @@ luci.project(
                 acl.SCHEDULER_OWNER,
                 acl.CQ_COMMITTER,
             ],
-            groups = "project-goma-server-tryjob-access"
+            groups = "project-goma-server-tryjob-access",
         ),
         # Ability to launch CQ dry runs.
         acl.entry(
             roles = acl.CQ_DRY_RUNNER,
-            groups = "project-chromium-tryjob-access"
+            groups = "project-chromium-tryjob-access",
         ),
-
         acl.entry(
             roles = acl.LOGDOG_WRITER,
-            groups = "luci-logdog-chromium-writers"
+            groups = "luci-logdog-chromium-writers",
         ),
     ],
 )
@@ -72,7 +69,6 @@ luci.bucket(
     ],
 )
 
-
 # The Milo builder list with all pre-submit builders, referenced below.
 luci.list_view(
     name = "Try Builders",
@@ -82,9 +78,9 @@ luci.list_view(
 luci.cq_group(
     name = "Main CQ",
     watch = cq.refset(
-      repo = "https://chromium-review.googlesource.com/infra/goma/server",
-      refs = ["refs/heads/.+"],
-    )
+        repo = "https://chromium-review.googlesource.com/infra/goma/server",
+        refs = ["refs/heads/.+"],
+    ),
 )
 luci.builder(
     name = "linux_rel",
