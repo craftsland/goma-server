@@ -92,7 +92,7 @@ luci.builder(
     ),
     dimensions = {
         "pool": "luci.flex.try",
-        "os": "Ubuntu-16.04",
+        "os": "Ubuntu-18.04",
         "cpu": "x86-64",
     },
 )
