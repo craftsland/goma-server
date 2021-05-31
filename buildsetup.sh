@@ -31,7 +31,7 @@ cipd ensure -log-level warning \
   -root "$cipd_dir"
 
 (cd "$sdk_dir"; rm -f go; ln -s .cipd_bin/bin/go)
-(cd "$sdk_dir"; rm -f protoc; ln -s .cipd_bin/protoc)
+(cd "$sdk_dir"; rm -f protoc; ln -s .cipd_bin/bin/protoc)
 
 echo "I: protoc and go are installed in ${sdk_dir}"
 echo "I: set ${sdk_dir} in \$PATH"

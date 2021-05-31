@@ -1018,15 +1018,44 @@ func buildArgs(ctx context.Context, cmdConfig *cmdpb.Config, arg0 string, req *g
 	args := append([]string{arg0}, req.Arg[1:]...)
 	if cmdConfig.GetCmdDescriptor().GetCross().GetWindowsCross() {
 		args[0] = winpath.ToPosix(args[0])
+		pathFlag := false
 	argLoop:
 		for i := 1; i < len(args); i++ {
-			for _, f := range []string{"/winsysroot", "-resource-dir=", "-imsvc"} {
+			if pathFlag {
+				args[i] = winpath.ToPosix(args[i])
+				pathFlag = false
+				continue argLoop
+			}
+			// JoinedOrSeparate
+			for _, f := range []string{"/winsysroot", "-winsysroot", "-imsvc", "/imsvc", "-I", "/I"} {
+				if args[i] == f {
+					pathFlag = true
+					continue argLoop
+				}
+				if strings.HasPrefix(args[i], f) {
+					args[i] = f + winpath.ToPosix(strings.TrimPrefix(args[i], f))
+					continue argLoop
+				}
+			}
+			// Joined
+			// Fd is ignored, though
+			for _, f := range []string{"-resource-dir=", "/Fo", "-Fo", "/Fd", "-Fd"} {
 				if strings.HasPrefix(args[i], f) {
 					args[i] = f + winpath.ToPosix(strings.TrimPrefix(args[i], f))
 					continue argLoop
 				}
 			}
 			// TODO: need to handle other args?
+			if strings.HasPrefix(args[i], "-") || strings.HasPrefix(args[i], "/") {
+				continue argLoop
+			}
+			// input file, or arg of some flag?
+			// assume arg of some flag (e.g. -D) won't be windows
+			// absolute path.
+			if winpath.IsAbs(args[i]) {
+				args[i] = winpath.ToPosix(args[i])
+				continue argLoop
+			}
 		}
 	}
 	if cmdConfig.GetCmdDescriptor().GetCross().GetClangNeedTarget() {

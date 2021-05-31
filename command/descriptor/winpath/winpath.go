@@ -95,13 +95,17 @@ func Join(elem ...string) string {
 // joined to basepath with an intervening separator.
 // TODO: case insensitive match.
 func Rel(basepath, targpath string) (string, error) {
-	if IsAbs(basepath) != IsAbs(targpath) {
-		return "", fmt.Errorf("Rel: can't make %s relative to %s", targpath, basepath)
-	}
 	bdrive, bpath := splitDrive(basepath)
 	tdrive, tpath := splitDrive(targpath)
+	if tdrive == "" {
+		tdrive = bdrive
+		targpath = tdrive + tpath
+	}
+	if IsAbs(basepath) != IsAbs(targpath) {
+		return "", fmt.Errorf("Rel: can't make %s relative to %s (abs %t vs %t)", targpath, basepath, IsAbs(targpath), IsAbs(basepath))
+	}
 	if bdrive != tdrive {
-		return "", fmt.Errorf("Rel: can't make %s relative to %s", targpath, basepath)
+		return "", fmt.Errorf("Rel: can't make %s relative to %s (drive mismatch %q vs %q)", targpath, basepath, tdrive, bdrive)
 	}
 	bpath = fixPathSep(bpath, '\\', '/')
 	tpath = fixPathSep(tpath, '\\', '/')

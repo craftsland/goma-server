@@ -197,6 +197,9 @@ func TestRel(t *testing.T) {
 		{".", "..", ".."},
 
 		{`C:a\b\c`, `C:a/b/d`, `..\d`},
+		{`C:\a\b\c`, `C:\a\b\d`, `..\d`},
+		{`C:\a\b\c`, `\a\b\d`, `..\d`},
+		{`C:\a\b\c`, `/a/b/d`, `..\d`},
 		{`C:\Projects`, `C:\Projects\src`, `src`},
 		{`C:\Projects`, `C:\Projects`, `.`},
 	} {
