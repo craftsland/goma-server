@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"sync/atomic"
@@ -212,6 +213,13 @@ func procStats(ctx context.Context) {
 }
 
 func reportProcStats(ctx context.Context) {
+	logger := log.FromContext(ctx)
+
+ 	if "linux" != runtime.GOOS {
+ 		logger.Warnf("Reporting proc stats is not supported on '%q'", runtime.GOOS)
+ 		return
+ 	}
+
 	t := time.NewTicker(samplingInterval)
 	defer t.Stop()
 	for {
