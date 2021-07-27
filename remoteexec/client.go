@@ -10,14 +10,13 @@ import (
 
 	rpb "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	bpb "google.golang.org/genproto/googleapis/bytestream"
 	lpb "google.golang.org/genproto/googleapis/longrunning"
 	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/log"
 	"go.chromium.org/goma/server/rpc"
@@ -139,7 +138,7 @@ func logOpMetadata(logger log.Logger, op *lpb.Operation) {
 		return
 	}
 	md := &rpb.ExecuteOperationMetadata{}
-	err := ptypes.UnmarshalAny(op.GetMetadata(), md)
+	err := op.GetMetadata().UnmarshalTo(md)
 	if err != nil {
 		logger.Warnf("operation update: %s: metadata bad type %T: %v", op.GetName(), op.GetMetadata(), err)
 		return
@@ -206,7 +205,7 @@ func ExecuteAndWait(ctx context.Context, c Client, req *rpb.ExecuteRequest, opts
 				continue
 			}
 			waitReq = nil
-			err = ptypes.UnmarshalAny(op.GetResponse(), resp)
+			err = op.GetResponse().UnmarshalTo(resp)
 			if err != nil {
 				err = status.Errorf(codes.Internal, "op %s response bad type %T: %v", op.GetName(), op.GetResponse(), err)
 				logger.Errorf("%s", err)

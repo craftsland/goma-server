@@ -328,6 +328,24 @@ func TestGccRelocatableReq(t *testing.T) {
 			relocatable: true,
 		},
 		{
+			desc: "-mllvm ml inliner relocatable",
+			args: append(append([]string{}, baseReleaseArgs...),
+				"-mllvm", "-enable-ml-inliner=development", "-mllvm", "-training-log=./train.log", "-mllvm", "-ml-inliner-model-under-training=./tf.policy"),
+			relocatable: true,
+		},
+		{
+			desc: "-mllvm ml inliner non-relocatable train log",
+			args: append(append([]string{}, baseReleaseArgs...),
+				"-mllvm", "-enable-ml-inliner=development", "-mllvm", "-training-log=/abs/train.log", "-mllvm", "-ml-inliner-model-under-training=./tf.policy"),
+			relocatable: false,
+		},
+		{
+			desc: "-mllvm ml inliner non-relocatable policy file",
+			args: append(append([]string{}, baseReleaseArgs...),
+				"-mllvm", "-enable-ml-inliner=development", "-mllvm", "-training-log=./train.log", "-mllvm", "-ml-inliner-model-under-training=/abs/tf.policy"),
+			relocatable: false,
+		},
+		{
 			desc: "-includeBuildConfig.h",
 			args: append(append([]string{}, baseReleaseArgs...),
 				"-includeBuildConfig.h"),

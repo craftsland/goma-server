@@ -17,8 +17,6 @@ import (
 
 	rpb "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 	sempb "github.com/bazelbuild/remote-apis/build/bazel/semver"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/google/uuid"
 	bpb "google.golang.org/genproto/googleapis/bytestream"
 	opb "google.golang.org/genproto/googleapis/longrunning"
@@ -26,6 +24,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"go.chromium.org/goma/server/log"
 	"go.chromium.org/goma/server/remoteexec/cas"
@@ -68,7 +68,7 @@ func execRespOp(opname string, resp *rpb.ExecuteResponse, err error) (*opb.Opera
 	}
 	opresp := &opb.Operation_Response{}
 	op.Result = opresp
-	opresp.Response, err = ptypes.MarshalAny(resp)
+	opresp.Response, err = anypb.New(resp)
 	return op, err
 }
 

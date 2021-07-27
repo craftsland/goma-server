@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/log"
 	"go.chromium.org/goma/server/remoteexec/digest"

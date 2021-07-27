@@ -13,8 +13,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/command/descriptor/winpath"
 	"go.chromium.org/goma/server/hash"

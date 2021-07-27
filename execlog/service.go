@@ -29,6 +29,7 @@ var (
 		stats.UnitDimensionless)
 
 	osFamilyKey           = tag.MustNewKey("os_family")
+	serviceAccountKey     = tag.MustNewKey("service_account")
 	gomaErrorKey          = tag.MustNewKey("goma_error")
 	compilerProxyErrorKey = tag.MustNewKey("compiler_proxy_error")
 	cacheHitKey           = tag.MustNewKey("cache_hit")
@@ -105,6 +106,7 @@ var (
 
 	tagKeys = []tag.Key{
 		osFamilyKey,
+		serviceAccountKey,
 		cacheHitKey,
 		depscacheUsedKey,
 		localRunKey,
@@ -115,6 +117,7 @@ var (
 		{
 			TagKeys: []tag.Key{
 				osFamilyKey,
+				serviceAccountKey,
 				gomaErrorKey,
 				compilerProxyErrorKey,
 				cacheHitKey,
@@ -229,9 +232,11 @@ func (Service) SaveLog(ctx context.Context, req *gomapb.SaveLogReq) (*gomapb.Sav
 	logger := log.FromContext(ctx)
 	for _, e := range req.GetExecLog() {
 		os := osFamily(e)
+		serviceAccount := e.GetServiceAccountId()
 		localRun := e.GetLocalRunTime() > 0
 		tags := []tag.Mutator{
 			tag.Upsert(osFamilyKey, os),
+			tag.Upsert(serviceAccountKey, serviceAccount),
 			tag.Upsert(cacheHitKey, fmt.Sprint(e.GetCacheHit())),
 			tag.Upsert(depscacheUsedKey, fmt.Sprint(e.GetDepscacheUsed())),
 			tag.Upsert(localRunKey, fmt.Sprint(localRun)),

@@ -7,8 +7,8 @@ package remoteexec
 import (
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/command/descriptor/posixpath"
 	"go.chromium.org/goma/server/command/descriptor/winpath"

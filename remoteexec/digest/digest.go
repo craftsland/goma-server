@@ -13,7 +13,7 @@ import (
 
 	rpb "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/hash"
 	"go.chromium.org/goma/server/remoteexec/datasource"

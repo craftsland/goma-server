@@ -13,9 +13,9 @@ import (
 
 	rdigest "github.com/bazelbuild/remote-apis-sdks/go/pkg/digest"
 	rpb "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"google.golang.org/protobuf/testing/protocmp"
 
 	"go.chromium.org/goma/server/remoteexec/digest"
 )
@@ -60,7 +60,7 @@ func blobDataToBatchUpdateReq(b *blobData) *rpb.BatchUpdateBlobsRequest_Request 
 }
 
 func protoEqual(x, y interface{}) bool {
-	return cmp.Equal(x, y, cmp.Comparer(proto.Equal), cmpopts.EquateEmpty())
+	return cmp.Equal(x, y, protocmp.Transform(), cmpopts.EquateEmpty())
 }
 
 func TestMissing(t *testing.T) {
@@ -792,7 +792,7 @@ func TestCreateBatchUpdateBlobsRequests(t *testing.T) {
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			batchReqs := createBatchUpdateBlobsRequests(tc.reqs, instance, tc.byteLimit)
-			if !cmp.Equal(batchReqs, tc.want) {
+			if !cmp.Equal(batchReqs, tc.want, protocmp.Transform()) {
 				t.Errorf("batchReqs=%q; want %q", batchReqs, tc.want)
 			}
 		})

@@ -13,8 +13,8 @@ import (
 
 	rpb "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 
 	"go.chromium.org/goma/server/command/descriptor/posixpath"
 	gomapb "go.chromium.org/goma/server/proto/api"

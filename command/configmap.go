@@ -24,12 +24,15 @@ import (
 	"go.opencensus.io/stats/view"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"go.chromium.org/goma/server/log"
 	cmdpb "go.chromium.org/goma/server/proto/command"
+	"go.chromium.org/goma/server/rpc"
 )
 
 var (
@@ -129,13 +132,23 @@ type configMapBucketWatcher struct {
 func (w configMapBucketWatcher) run(ctx context.Context) {
 	logger := log.FromContext(ctx)
 	logger.Infof("watch start")
-	err := w.s.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
-		logger.Debugf("receive message: %s", msg.ID)
-		w.ch <- msg
+	err := rpc.Retry{}.Do(ctx, func() error {
+		err := w.s.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+			logger.Debugf("receive message: %s", msg.ID)
+			w.ch <- msg
+		})
+		if err != nil {
+			logger.Errorf("configMapBucketWatcher.run: %v", err)
+		}
+		if status.Code(err) == codes.Unknown {
+			// crbug.com/1226107
+			return rpc.RetriableError{
+				Err: err,
+			}
+		}
+		return err
 	})
-	if err != nil {
-		logger.Errorf("configMapBucketWatcher.run: %v", err)
-	}
+	logger.Errorf("configMapBucketWatcher.run retry finished: %v", err)
 	close(w.ch)
 	logger.Infof("watch finished")
 }

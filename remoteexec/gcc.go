@@ -322,6 +322,20 @@ func llvmArgRelocatable(filepath clientFilePath, args []string) error {
 			// -mllvm -enable-dse-memoryssa={true,false}
 			// doesn't take a path related value.
 
+		case strings.HasPrefix(arg, "-enable-ml-inliner="):
+			// --mllvm -enable-ml-inliner={development,release}
+			// does't take a path related value.
+
+		case strings.HasPrefix(arg, "-training-log="):
+			if filepath.IsAbs(arg[len("-training-log="):]) {
+				return fmt.Errorf("abs path: %s", arg)
+			}
+
+		case strings.HasPrefix(arg, "-ml-inliner-model-under-training="):
+			if filepath.IsAbs(arg[len("-ml-inliner-model-under-training="):]) {
+				return fmt.Errorf("abs path: %s", arg)
+			}
+
 		default:
 			return unknownFlagError{arg: fmt.Sprintf("llvm: %s", arg)}
 		}

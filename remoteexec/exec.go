@@ -19,15 +19,14 @@ import (
 
 	rpb "github.com/bazelbuild/remote-apis/build/bazel/remote/execution/v2"
 
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
-	tspb "github.com/golang/protobuf/ptypes/timestamp"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 	"go.opencensus.io/trace"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	tspb "google.golang.org/protobuf/types/known/timestamppb"
 
 	"go.chromium.org/goma/server/command/descriptor"
 	"go.chromium.org/goma/server/command/descriptor/posixpath"
@@ -1057,6 +1056,22 @@ func buildArgs(ctx context.Context, cmdConfig *cmdpb.Config, arg0 string, req *g
 				continue argLoop
 			}
 		}
+		envs := req.Env
+		req.Env = nil
+		for _, e := range envs {
+			switch {
+			case strings.HasPrefix(e, "INCLUDE="):
+				includes := strings.Split(strings.TrimPrefix(e, "INCLUDE="), ";")
+				for _, inc := range includes {
+					args = append(args, "-imsvc"+winpath.ToPosix(inc))
+				}
+			case strings.HasPrefix(e, "LIB="):
+				// unnecessary?
+			default:
+				req.Env = append(req.Env, e)
+			}
+		}
+
 	}
 	if cmdConfig.GetCmdDescriptor().GetCross().GetClangNeedTarget() {
 		args = addTargetIfNotExist(args, req.GetCommandSpec().GetTarget())
@@ -1433,17 +1448,8 @@ func (r *request) executeAction(ctx context.Context) (*rpb.ExecuteResponse, erro
 }
 
 func timestampSub(ctx context.Context, t1, t2 *tspb.Timestamp) time.Duration {
-	logger := log.FromContext(ctx)
-	time1, err := ptypes.Timestamp(t1)
-	if err != nil {
-		logger.Errorf("%s: %v", t1, err)
-		return 0
-	}
-	time2, err := ptypes.Timestamp(t2)
-	if err != nil {
-		logger.Errorf("%s: %v", t2, err)
-		return 0
-	}
+	time1 := t1.AsTime()
+	time2 := t2.AsTime()
 	return time1.Sub(time2)
 }
 
