@@ -1,6 +1,7 @@
 // Copyright 2017 The Goma Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//go:build ignore
 // +build ignore
 
 // client.go is sample client of file server.

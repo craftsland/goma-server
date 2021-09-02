@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
+	gax "github.com/googleapis/gax-go/v2"
 	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/stats"
@@ -172,17 +173,17 @@ func configMapToConfigResp(ctx context.Context, cm *cmdpb.ConfigMap) *cmdpb.Conf
 	return resp
 }
 
-func configureByLoader(ctx context.Context, loader *command.ConfigMapLoader, inventory *exec.Inventory) (string, error) {
+func configureByLoader(ctx context.Context, loader *command.ConfigMapLoader, inventory *exec.Inventory, force bool) (string, error) {
 	logger := log.FromContext(ctx)
 	start := time.Now()
-	resp, err := loader.Load(ctx)
-	logger.Infof("loader.Load finished in %s", time.Since(start))
+	resp, err := loader.Load(ctx, force)
+	logger.Infof("loader.Load finished in %s: %v", time.Since(start), err)
 	if err != nil {
 		return "", err
 	}
 	start = time.Now()
 	err = inventory.Configure(ctx, resp)
-	logger.Infof("inventory.Configure finished in %s", time.Since(start))
+	logger.Infof("inventory.Configure finished in %s: %v", time.Since(start), err)
 	if err != nil {
 		return "", err
 	}
@@ -251,9 +252,9 @@ func newConfigServer(ctx context.Context, inventory *exec.Inventory, bucket, con
 	return cs, nil
 }
 
-func (cs *configServer) configure(ctx context.Context) error {
+func (cs *configServer) configure(ctx context.Context, force bool) error {
 	logger := log.FromContext(ctx)
-	id, err := configureByLoader(ctx, cs.loader, cs.inventory)
+	id, err := configureByLoader(ctx, cs.loader, cs.inventory, force)
 	if err != nil {
 		if err != command.ErrNoUpdate {
 			recordConfigUpdate(ctx, err)
@@ -270,21 +271,48 @@ func (cs *configServer) ListenAndServe() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	cs.cancel = cancel
 	logger := log.FromContext(ctx)
+	var backoff *gax.Backoff
 	for {
-		logger.Infof("waiting for config update...")
-		err := cs.w.Next(ctx)
+		wctx := ctx
+		cancel := func() {}
+		var timeout time.Duration
+		if backoff != nil {
+			timeout = backoff.Pause()
+			wctx, cancel = context.WithTimeout(wctx, timeout)
+		}
+		logger.Infof("waiting for config update... timeout:%s", timeout)
+		err := cs.w.Next(wctx)
+		cancel()
 		if err != nil {
 			logger.Errorf("watch failed %v", err)
-			return err
+			if backoff == nil {
+				return err
+			}
+			if errors.Is(err, command.ErrWatcherClosed) {
+				return err
+			}
+			// if backoff != nil, Next may return context.Canceled
+			// or so due to timeout in wctx.  Try loading anyway.
 		}
-		err = cs.configure(ctx)
+		force := backoff != nil
+		err = cs.configure(ctx, force)
 		if err == command.ErrNoUpdate {
+			backoff = nil
 			continue
 		}
 		if err != nil {
+			// loader  may not get all objects matched around storage@v1.15.0
+			// https://github.com/googleapis/google-cloud-go/issues/4676
 			logger.Errorf("config failed: %v", err)
+			if backoff == nil {
+				backoff = &gax.Backoff{
+					Initial: time.Minute,
+					Max:     time.Hour,
+				}
+			}
 			continue
 		}
+		backoff = nil
 	}
 }
 
@@ -502,7 +530,7 @@ func main() {
 			logger.Fatalf("configServer: %v", err)
 		}
 		go func() {
-			ready <- cs.configure(ctx)
+			ready <- cs.configure(ctx, true)
 		}()
 		confServer = cs
 	}

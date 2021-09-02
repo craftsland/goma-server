@@ -36,6 +36,8 @@ import (
 )
 
 var (
+	ErrWatcherClosed = errors.New("watcher closed")
+
 	pubsubErrors = stats.Int64(
 		"go.chromium.org/goma/command/configmap.pubsub-error",
 		"configmap pubsub error",
@@ -156,9 +158,15 @@ func (w configMapBucketWatcher) run(ctx context.Context) {
 func (w configMapBucketWatcher) Next(ctx context.Context) error {
 	logger := log.FromContext(ctx)
 	for {
-		msg, ok := <-w.ch
-		if !ok {
-			return errors.New("watcher closed")
+		var msg *pubsub.Message
+		var ok bool
+		select {
+		case msg, ok = <-w.ch:
+			if !ok {
+				return ErrWatcherClosed
+			}
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 		// https://cloud.google.com/storage/docs/pubsub-notifications#attributes
 		eventType := msg.Attributes["eventType"]
@@ -423,8 +431,8 @@ type configs struct {
 var ErrNoUpdate = errors.New("toolchain: configmap no update")
 
 // Load loads toolchain config.
-// It will return ErrNoUpdate if there is no seq change.
-func (c *ConfigMapLoader) Load(ctx context.Context) (*cmdpb.ConfigResp, error) {
+// It will return ErrNoUpdate if there is no seq change when force=false.
+func (c *ConfigMapLoader) Load(ctx context.Context, force bool) (*cmdpb.ConfigResp, error) {
 	logger := log.FromContext(ctx)
 	defer logger.Sync()
 
@@ -445,7 +453,10 @@ func (c *ConfigMapLoader) Load(ctx context.Context) (*cmdpb.ConfigResp, error) {
 		}
 	}
 	if len(updated) == 0 && len(deleted) == 0 {
-		return nil, ErrNoUpdate
+		if !force {
+			return nil, ErrNoUpdate
+		}
+		logger.Infof("configmap no update, but force to load")
 	}
 	for name := range deleted {
 		logger.Infof("delete config for %s", name)
@@ -707,11 +718,13 @@ func loadConfigs(ctx context.Context, client stiface.Client, uri string, rc *cmd
 
 	// pagination?
 	var confs []*cmdpb.Config
-	logger.Infof("load from %s", bucket)
+	logger.Infof("load from %s prefix:%s", bucket, obj)
 	start := time.Now()
 	var attrsList []*storage.ObjectAttrs
 	for {
 		// iter does not have an API to read all, so just iterate everything.
+		// iter may not get all objects matched around storage@v1.15.0
+		// https://github.com/googleapis/google-cloud-go/issues/4676
 		attrs, err := iter.Next()
 		if err == iterator.Done {
 			break
@@ -797,6 +810,6 @@ func loadConfigs(ctx context.Context, client stiface.Client, uri string, rc *cmd
 		confs = append(confs, conf)
 		logger.Infof("%s/%s: %s", bucket, attrs.Name, conf.CmdDescriptor.GetSelector())
 	}
-	logger.Infof("loaded from %s: %d configs using %v", bucket, len(confs), time.Since(start))
+	logger.Infof("loaded from %s prefix:%s: %d configs using %v", bucket, obj, len(confs), time.Since(start))
 	return confs, nil
 }

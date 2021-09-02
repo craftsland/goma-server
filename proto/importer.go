@@ -1,3 +1,5 @@
+// Copyright 2021 Google LLC. All Rights Reserved.
+//go:build ignore
 // +build ignore
 
 // Binary importer imports proto files.

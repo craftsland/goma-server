@@ -168,6 +168,14 @@ type platformConfig struct {
 	acl                *cmdpb.ACL
 }
 
+func numConfigs(configs map[string]map[selector]*cmdpb.Config) int {
+	n := 0
+	for _, m := range configs {
+		n += len(m)
+	}
+	return n
+}
+
 // Configure sets config in the inventory.
 func (in *Inventory) Configure(ctx context.Context, cfgs *cmdpb.ConfigResp) error {
 	ctx, span := trace.StartSpan(ctx, "go.chromium.org/goma/server/exec.Service.Configure")
@@ -228,6 +236,18 @@ func (in *Inventory) Configure(ctx context.Context, cfgs *cmdpb.ConfigResp) erro
 	}
 	in.mu.Lock()
 	defer in.mu.Unlock()
+	n0 := numConfigs(in.configs)
+	n1 := numConfigs(newConfigs)
+	logger.Infof("configure %s:%d -> %s:%d", in.versionID, n0, cfgs.VersionId, n1)
+	if diff := n0 - n1; n0 != 0 && 100*diff/n0 > 1 {
+		ratio := 100 * diff / n0
+		// mitigate for https://bugs.chromium.org/p/chromium/issues/detail?id=1243381
+		// if configs reduced more than 1%, reject it, and
+		// retry load.
+		// if it is a real removal, restaring server can forget
+		// the old one.
+		return fmt.Errorf("too many configs will be removed: %d -> %d: -%d%%. keep old ones.  Please restart the server if the config removal is intended", n0, n1, ratio)
+	}
 	in.versionID = cfgs.VersionId
 	in.addrs = newAddrs
 	in.configs = newConfigs
