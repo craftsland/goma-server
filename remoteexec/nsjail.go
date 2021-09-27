@@ -5,6 +5,7 @@
 package remoteexec
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -174,6 +175,17 @@ nsjail --quiet --config "$WORK_DIR/nsjail.cfg" -- "$@"
 `
 )
 
+var seccompString []string
+
+func init() {
+	m := &nsjailpb.NsJailConfig{}
+	err := prototext.Unmarshal([]byte(nsjailHardeningConfig), m)
+	if err != nil {
+		panic(fmt.Errorf("bad nsjailHardeningConfig: %v", err))
+	}
+	seccompString = m.SeccompString
+}
+
 // pathFromToolchainSpec returns ':'-joined directories of paths in toolchain spec.
 // Since symlinks may point to executables, having directories with executables
 // may not work, but it is a bit cumbersome to analyze symlinks.
@@ -254,6 +266,8 @@ func nsjailChrootConfig(cwd string, cfp clientFilePath, ts []*gomapb.ToolchainSp
 		// TODO: relax RLimit from the default.
 		// Default size might be too strict, and not suitable for
 		// compiling.
+
+		SeccompString: seccompString,
 	}
 	return []byte(prototext.Format(cfg))
 }
