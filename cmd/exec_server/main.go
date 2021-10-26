@@ -255,6 +255,10 @@ func newConfigServer(ctx context.Context, inventory *exec.Inventory, bucket, con
 func (cs *configServer) configure(ctx context.Context, force bool) error {
 	logger := log.FromContext(ctx)
 	id, err := configureByLoader(ctx, cs.loader, cs.inventory, force)
+	if errors.Is(err, context.Canceled) {
+		logger.Errorf("canceled to configure: %v", err)
+		return err
+	}
 	if err != nil {
 		if err != command.ErrNoUpdate {
 			recordConfigUpdate(ctx, err)
@@ -296,6 +300,10 @@ func (cs *configServer) ListenAndServe() error {
 		}
 		force := backoff != nil
 		err = cs.configure(ctx, force)
+		if errors.Is(err, context.Canceled) {
+			// configServer was shutted down.
+			return err
+		}
 		if err == command.ErrNoUpdate {
 			backoff = nil
 			continue

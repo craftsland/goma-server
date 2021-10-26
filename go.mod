@@ -3,12 +3,12 @@ module go.chromium.org/goma/server
 go 1.12
 
 require (
-	cloud.google.com/go v0.95.0
+	cloud.google.com/go v0.97.0
 	cloud.google.com/go/errorreporting v0.1.0
-	cloud.google.com/go/monitoring v1.0.0
-	cloud.google.com/go/profiler v0.1.0
-	cloud.google.com/go/pubsub v1.17.0
-	cloud.google.com/go/storage v1.16.1
+	cloud.google.com/go/monitoring v1.1.0
+	cloud.google.com/go/profiler v0.1.1
+	cloud.google.com/go/pubsub v1.17.1
+	cloud.google.com/go/storage v1.18.2
 	cloud.google.com/go/trace v1.0.0 // indirect
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.8
 	github.com/bazelbuild/remote-apis v0.0.0-20210520160108-3e385366f152
@@ -25,10 +25,10 @@ require (
 	go.uber.org/zap v1.19.1
 	golang.org/x/build v0.0.0-20191031202223-0706ea4fce0c
 	golang.org/x/net v0.0.0-20210505214959-0714010a04ed
-	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
+	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	google.golang.org/api v0.57.0
-	google.golang.org/genproto v0.0.0-20210921142501-181ce0d877f6
+	google.golang.org/api v0.59.0
+	google.golang.org/genproto v0.0.0-20211019152133-63b7e35f4404
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
 )
