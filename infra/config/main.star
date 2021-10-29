@@ -1,6 +1,6 @@
 #!/usr/bin/env lucicfg
 
-lucicfg.check_version("1.23.0", "Please update depot_tools")
+lucicfg.check_version("1.29.0", "Please update depot_tools")
 
 # Enable LUCI Realms support.
 lucicfg.enable_experiment("crbug.com/1085650")
@@ -94,6 +94,9 @@ luci.builder(
         "pool": "luci.flex.try",
         "os": "Ubuntu-18.04",
         "cpu": "x86-64",
+    },
+    experiments = {
+        "luci.recipes.use_python3": 100,
     },
 )
 
