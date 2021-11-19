@@ -481,7 +481,7 @@ func (r *request) newInputTree(ctx context.Context) *gomapb.ExecResp {
 	defer span.End()
 	logger := log.FromContext(ctx)
 
-	inputPaths, err := inputPaths(r.filepath, r.gomaReq, r.cmdFiles[0].Path)
+	execPaths, err := execPaths(r.filepath, r.gomaReq, r.cmdFiles[0].Path)
 	if err != nil {
 		logger.Errorf("bad input: %v", err)
 		r.gomaResp.Error = gomapb.ExecResp_BAD_REQUEST.Enum()
@@ -489,12 +489,12 @@ func (r *request) newInputTree(ctx context.Context) *gomapb.ExecResp {
 		return r.gomaResp
 	}
 	execRootDir := r.gomaReq.GetRequesterInfo().GetExecRoot()
-	rootDir, needChroot, err := inputRootDir(r.filepath, inputPaths, r.allowChroot, execRootDir)
+	rootDir, needChroot, err := deriveExecRoot(r.filepath, execPaths, r.allowChroot, execRootDir)
 	if err != nil {
-		logger.Errorf("input root detection failed: %v", err)
-		logFileList(logger, "input paths", inputPaths)
+		logger.Errorf("exec root detection failed: %v", err)
+		logFileList(logger, "exec paths", execPaths)
 		r.gomaResp.Error = gomapb.ExecResp_BAD_REQUEST.Enum()
-		r.gomaResp.ErrorMessage = append(r.gomaResp.ErrorMessage, fmt.Sprintf("input root detection failed: %v", err))
+		r.gomaResp.ErrorMessage = append(r.gomaResp.ErrorMessage, fmt.Sprintf("exec root detection failed: %v", err))
 		return r.gomaResp
 	}
 	r.tree = merkletree.New(r.filepath, rootDir, r.digestStore)
