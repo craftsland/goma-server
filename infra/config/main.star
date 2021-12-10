@@ -76,7 +76,7 @@ luci.list_view(
 
 # The CQ group with all pre-submit builders, referenced below.
 luci.cq_group(
-    name = "Main CQ",
+    name = "Main_CQ",
     watch = cq.refset(
         repo = "https://chromium-review.googlesource.com/infra/goma/server",
         refs = ["refs/heads/.+"],
@@ -89,6 +89,7 @@ luci.builder(
     executable = luci.recipe(
         name = "goma_server",
         cipd_package = "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build",
+        use_bbagent = True,
     ),
     dimensions = {
         "pool": "luci.flex.try",
@@ -103,7 +104,7 @@ luci.builder(
 # Add to the CQ.
 luci.cq_tryjob_verifier(
     builder = "try/linux_rel",
-    cq_group = "Main CQ",
+    cq_group = "Main_CQ",
 )
 
 # And also to the pre-submit builders list.
